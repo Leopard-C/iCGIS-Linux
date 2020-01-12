@@ -1,0 +1,4 @@
+data/*
+build/*
+logs/*
+lib/libgdal.a
