@@ -14,6 +14,7 @@
 #include <array>
 #include <chrono>
 #include <iostream>
+#include <QDebug>
 
 
 /*************************************/
@@ -221,6 +222,7 @@ void OpenGLWidget::setMVP()
 void OpenGLWidget::mousePressEvent(QMouseEvent* ev)
 {
 	mouseBeginPos = mouseLastPos = ev->pos();
+    isMouseClicked = true;
 
 	// 清空已经选中的要素
 	clearSelected();
@@ -236,6 +238,14 @@ void OpenGLWidget::mouseMoveEvent(QMouseEvent* ev)
 	// 是否已经加载地图
 	if (!map || map->isEmpty())
 		return;
+
+    // 没有按下鼠标左键
+    // 移动鼠标：更新状态栏的鼠标当前坐标
+    if (!isMouseClicked) {
+        GeoRawPoint geoXY = screen2xy(ev->x(), ev->y());
+        statusbar->setCoord(geoXY.x, geoXY.y);
+        return;
+    }
 
 	GeoExtent mapExtent = map->getExtent();
 
@@ -278,6 +288,7 @@ void OpenGLWidget::mouseReleaseEvent(QMouseEvent* ev)
 {
 	QPoint mouseCurrPos = ev->pos();
 	isRectSelecting = false;
+    isMouseClicked = false;
 
 	// 是否在编辑状态
 	if (isEditing) {

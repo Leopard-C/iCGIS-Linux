@@ -11,6 +11,7 @@
 #include "geo/map/geomap.h"
 #include "opengl/renderer.h"
 #include "opengl/layermanager/opengllayermanager.h"
+#include "widget/statusbar.h"
 
 #include <QOpenGLWidget>
 #include <QMouseEvent>
@@ -25,12 +26,14 @@ class OpenGLWidget : public QOpenGLWidget
 {
 	Q_OBJECT
 public:
-	explicit OpenGLWidget(GeoMap* mapIn, QWidget* parent = 0);
+    explicit OpenGLWidget(GeoMap* mapIn, QWidget* parent = nullptr);
 	~OpenGLWidget();
 
 signals:	
 
 public:
+    // 设置状态栏指针
+    void setStatusBar(StatusBar* statusbarIn) { statusbar = statusbarIn; }
 	// 发送FeatureLayer数据到GPU
 	void sendDataToGPU(GeoFeatureLayer* featureLayer);
 	// 发送RasterLayer数据到GPU
@@ -50,8 +53,6 @@ public slots:
 
 	// 修改要素的填充色
 	void setFillColor(int nLID, int nFID, int r, int g, int b, bool bUpdate = true);
-
-
 
 private:
 	// 世界坐标系坐标到屏幕坐标
@@ -126,6 +127,7 @@ private:
 	// 调整的地图范围（调整至和视口的长宽比一致）
 	GeoExtent adjustedMapExtent;
 
+    bool isMouseClicked = false;
 	bool isRunning = true;
 	bool isEditing = false;
 	bool isRectSelecting = false;
@@ -138,5 +140,7 @@ private:
 	// 用于 mouse release 事件
 	QPoint mouseBeginPos;
 	QPoint mouseCurrPos;
+
+    StatusBar* statusbar;
 };
 

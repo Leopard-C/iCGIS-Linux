@@ -20,10 +20,13 @@ INCLUDEPATH += \
     include \
     src
 
-LIBS += -L$$PWD/lib/ -ljsoncpp -lspdlog -lgdal -lGLEW
+LIBS += -L$$PWD/lib -ljsoncpp -lspdlog -lgdal -lGLEW
+
+LIBS += -ldl -lexpat
 
 INCLUDEPATH += $$PWD/lib
 DEPENDPATH += $$PWD/lib
+
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/build
@@ -137,6 +140,7 @@ SOURCES += \
     src/widget/layerstreewidgetitem.cpp \
     src/widget/openglwidget.cpp \
     src/widget/searchcompleter.cpp \
+    src/widget/statusbar.cpp \
     src/widget/toolboxtreewidget.cpp
 
 HEADERS += \
@@ -729,4 +733,5 @@ HEADERS += \
     src/widget/layerstreewidgetitem.h \
     src/widget/openglwidget.h \
     src/widget/searchcompleter.h \
+    src/widget/statusbar.h \
     src/widget/toolboxtreewidget.h
