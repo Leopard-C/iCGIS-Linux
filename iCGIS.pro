@@ -27,6 +27,10 @@ LIBS += -ldl -lexpat
 INCLUDEPATH += $$PWD/lib
 DEPENDPATH += $$PWD/lib
 
+# Precompiled headers
+CONFIG += precompile_header
+PRECOMPILED_HEADER = src/stable.h
+
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/build
