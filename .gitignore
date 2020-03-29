@@ -1,4 +1,5 @@
+iCGIS.pro.user
 data/*
 build/*
 logs/*
-lib/libgdal.a
+lib/unix/libgdal.a

@@ -1,4 +1,5 @@
-#include "statusbar.h"
+#include "widget/statusbar.h"
+#include "util/appevent.h"
 
 #include <QString>
 
@@ -7,7 +8,10 @@ StatusBar::StatusBar(QStatusBar *statusBarIn)
     createWidgets();
     setupLayout();
     setUnit(kDegree);
-    setCoord(0.0, 0.0);
+    onUpdateCoord(0.0, 0.0);
+
+    connect(AppEvent::getInstance(), &AppEvent::sigUpdateCoord,
+            this, &StatusBar::onUpdateCoord);
 }
 
 StatusBar::~StatusBar() {}
@@ -28,7 +32,8 @@ void StatusBar::setUnit(CoordUint unitIn) {
     unit = unitIn;
 }
 
-void StatusBar::setCoord(double x, double y) {
+// show current coordinate of mouse cursor's position
+void StatusBar::onUpdateCoord(double x, double y) {
     switch (unit) {
     case kDegree: {
         QString coordText = QString("%1E %2N").arg(x, 8, 'f', 5).arg(y, 8, 'f', 5);
@@ -44,7 +49,7 @@ void StatusBar::setCoord(double x, double y) {
     }
 }
 
-// 状态栏左侧显示临时信息timeMs毫秒
+// show message for timeMs milliseconds in left area
 void StatusBar::showMsg(const QString &msg, int timeMs)
 {
     statusBar->showMessage(msg, timeMs);

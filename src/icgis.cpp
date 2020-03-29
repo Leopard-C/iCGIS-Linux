@@ -1,8 +1,12 @@
 #include "icgis.h"
-#include "logger.h"
 
+#include "util/env.h"
+#include "util/utility.h"
+#include "util/logger.h"
 #include "geo/utility/filereader.h"
 #include "geo/utility/geo_math.h"
+#include "dialog/aboutdialog.h"
+#include "dialog/newmapdialog.h"
 
 #include <QDebug>
 #include <QFileDialog>
@@ -10,24 +14,37 @@
 #include <QIcon>
 #include <QLabel>
 #include <QMessageBox>
+#include <QMetaType>
 #include <QPushButton>
-#include <QSplitter>
 #include <QStatusBar>
 #include <QString>
 #include <QVBoxLayout>
 
-static int count = 0;
 
-ICGis::ICGis(QWidget *parent) : QMainWindow(parent) {
+ICGis::ICGis(QWidget *parent)
+    : QMainWindow(parent), map(Env::map)
+{
     this->setFocusPolicy(Qt::StrongFocus);
     this->setWindowTitle(tr("iC GIS"));
     this->setWindowIcon(QIcon("res/icons/app_32x32.ico"));
+
+    qRegisterMetaType<GeoFeature>("GeoFeature&");
+    qRegisterMetaType<GeoLayer>("GeoLayer");
+    qRegisterMetaType<GeoFeatureLayer>("GeoFeatureLayer");
+    qRegisterMetaType<GeoRasterLayer>("GeoRasterLayer");
+
+    QString logFilePath = QDir::currentPath() + "/logs";
+    QDir dir(logFilePath);
+    if(!dir.exists()) {
+        dir.mkdir(logFilePath);
+    }
+
     LInfo("Program start");
-    map = new GeoMap();
-    map->setName("untitled");
+    Env::map->setName("untitled");
 
     createMenus();
     createStatusBar();
+    createToolBar();
     createWidgets();
     createActions();
     setupLayout();
@@ -45,56 +62,53 @@ ICGis::~ICGis() {
 /*************************************************************/
 /*                                                           */
 /*                       Initialize                          */
-/*             1. Create actions、widgets、menu、etc         */
+/*             1. Create actions, widgets, menu, etc         */
 /*             2. Setup layout                               */
 /*                                                           */
 /*************************************************************/
 
 void ICGis::createMenus() {
     /* menu bar */
-    // file
+    // File
     fileMenu = menuBar()->addMenu(tr("File"));
-    // file -> new
+    // File -> New
     newFileMenu = fileMenu->addMenu(tr("New"));
     newFileMenu->setIcon(QIcon("res/icons/new.ico"));
-    // file -> open
+    // File -> Open
     openFileMenu = fileMenu->addMenu(tr("Open"));
     openFileMenu->setIcon(QIcon("res/icons/open.ico"));
-    // file -> connect (database)
+    // File -> Connect (database)
     connectMenu = fileMenu->addMenu(tr("Connect"));
     connectMenu->setIcon(QIcon("res/icons/connect-db.ico"));
-    // window
+    // Window
     windowMenu = menuBar()->addMenu(tr("Window"));
+    // about
+    aboutMenu = menuBar()->addMenu(tr("About"));
 
     /* pop menu */
     popMenu = new QMenu(this);
 }
 
-void ICGis::createToolBar() {}
-
+void ICGis::createToolBar() {
+    toolbar = new ToolBar(this);
+    this->addToolBar(toolbar);
+}
 
 void ICGis::createStatusBar() {
     this->statusBar()->setStyleSheet("QStatusBar::item{border: 0px}");
     statusbar = new StatusBar(this->statusBar());
 }
 
-
 void ICGis::createWidgets() {
     // layers tree
-    layersTreeWidget = new LayersTreeWidget(map, this); // 左侧显示图层区域
+    layersTreeWidget = new LayersTreeWidget(this);
     // tool box
-    toolboxTreeWidget = new ToolBoxTreeWidget(map, this);
+    toolboxTreeWidget = new ToolBoxTreeWidget(this);
     // opengl
-    openGLWidget = new OpenGLWidget(map, this); // 右侧openGL绘图区域
+    openGLWidget = new OpenGLWidget(this);
     // search bar
     searchWidget =
-        new GlobalSearchWidget(map, openGLWidget); // 搜索框显示在OpenglWidget之上
-
-    toolboxTreeWidget->setOpenGLWidget(openGLWidget);
-    toolboxTreeWidget->setLayersTreeWidget(layersTreeWidget);
-    layersTreeWidget->setOpenGLWidget(openGLWidget);
-    searchWidget->setOpenGLWidget(openGLWidget);
-    openGLWidget->setStatusBar(statusbar);
+        new GlobalSearchWidget(openGLWidget);
 }
 
 
@@ -106,6 +120,7 @@ void ICGis::createActions() {
     newLayerAction->setIcon(QIcon("res/icons/layer.ico"));
     newFileMenu->addAction(newMapAction);
     newFileMenu->addAction(newLayerAction);
+    connect(newMapAction, &QAction::triggered, this, &ICGis::onNewMap);
 
     // menu: File -> Open
     openGeoJsonMineAction =
@@ -144,16 +159,19 @@ void ICGis::createActions() {
     showLogDialog->setIcon(QIcon("res/icons/log.ico"));
     windowMenu->addAction(showLogDialog);
     connect(showLogDialog, &QAction::triggered, this, &ICGis::onShowLogDialog);
+
+    // menu: About
+    aboutAction = new QAction(tr("About iC GIS"), this);
+    aboutAction->setIcon(QIcon(""));
+    aboutMenu->addAction(aboutAction);
+    connect(aboutAction, &QAction::triggered, this, &ICGis::onAbout);
 }
 
 
-// 使用代码布局ui
+// layout
 void ICGis::setupLayout() {
     QWidget *centerWidget = new QWidget();
-    //centerWidget->setMouseTracking(true);
     this->setCentralWidget(centerWidget);
-    //this->setMouseTracking(true);
-    this->openGLWidget->setMouseTracking(true);
 
     searchWidget->setGeometry(20, 20, 200, 25);
 
@@ -170,8 +188,6 @@ void ICGis::setupLayout() {
     mainLayout->setStretch(1, 3);
 }
 
-// 发送数据到OpenGL并绘图
-void ICGis::onUpdateOpenGLWidget() { openGLWidget->update(); }
 
 /*************************************************************/
 /*                                                           */
@@ -179,109 +195,116 @@ void ICGis::onUpdateOpenGLWidget() { openGLWidget->update(); }
 /*                                                           */
 /*************************************************************/
 
+// menu: file->new->map
+void ICGis::onNewMap() {
+    NewMapDialog* dialog = new NewMapDialog(this);
+    dialog->setModal(true);
+    dialog->show();
+}
+
+
 // menu: file->open->GeoJson
-// Method2: Using Mine
+// Method1: Parse GeoJson file using JsonCpp library
 void ICGis::onOpenGeoJsonMine() {
-    QString filepath = QFileDialog::getOpenFileName(
-        this, tr("Open File"), ".", tr("json files(*.json)"), nullptr,
+    QStringList files = QFileDialog::getOpenFileNames(
+        this, tr("Open File"), "", tr("json files(*.json)"), nullptr,
         QFileDialog::DontUseNativeDialog);
 
-    if (filepath.isEmpty()) {
+    if (files.isEmpty()) {
         return;
     }
 
-    GeoFeatureLayer *newLayer = FileReader::readGeoJsonMine(filepath, map);
-    if (!newLayer) {
-        QMessageBox::critical(this, tr("Error"),
-                              tr("Read and parse geojson error"));
-        LError("Read and parse geojson file error");
-        return;
+    for (auto iter = files.begin(); iter != files.end(); ++iter) {
+        GeoFeatureLayer *newFeatureLayer = FileReader::readGeoJsonMine(*iter, map);
+        if (!newFeatureLayer) {
+            QString errmsg = "Read and parse geoJson failed: " + *iter;
+            QMessageBox::critical(this, "Error", errmsg, QMessageBox::Ok);
+            LError(errmsg.toStdString());
+            continue;
+        }
+        layersTreeWidget->onAddNewLayer(newFeatureLayer);
+        openGLWidget->onSendFeatureLayerToGPU(newFeatureLayer, false);    // not update immediately
     }
 
-    LInfo("Read geojson successfully");
-    layersTreeWidget->insertNewItem(newLayer);
     searchWidget->updateCompleterList();
-
-    // 发送数据给GPU并绘图
-    openGLWidget->sendDataToGPU(newLayer);
+    openGLWidget->update();
 }
 
 // menu: file->open->GeoJson
 // Method2: Using GDAL
 void ICGis::onOpenGeoJsonUsingGDAL() {
-    QString filepath = QFileDialog::getOpenFileName(
-        this, tr("Open File"), ".", tr("json files(*.json)"), nullptr,
+    QStringList files = QFileDialog::getOpenFileNames(
+        this, tr("Open File"), "", tr("json files(*.json)"), nullptr,
         QFileDialog::DontUseNativeDialog);
 
-    if (filepath.isEmpty()) {
+    if (files.isEmpty()) {
         return;
     }
 
-    GeoFeatureLayer *newFeatureLayer =
-        FileReader::readGeoJsonUsingGDAL(filepath, map);
-    if (!newFeatureLayer) {
-        QMessageBox::critical(this, tr("Error"),
-                              tr("Read and parse geojson error"));
-        LError("Read and parse geojson file error");
-        return;
+    for (auto iter = files.begin(); iter != files.end(); ++iter) {
+        GeoFeatureLayer *newFeatureLayer = FileReader::readGeoJsonUsingGDAL(*iter, map);
+        if (!newFeatureLayer) {
+            QString errmsg = "Read and parse geoJson failed: " + *iter;
+            QMessageBox::critical(this, "Error", errmsg, QMessageBox::Ok);
+            LError(errmsg.toStdString());
+            continue;
+        }
+        layersTreeWidget->onAddNewLayer(newFeatureLayer);
+        openGLWidget->onSendFeatureLayerToGPU(newFeatureLayer, false);    // not update immediately
     }
 
-    LInfo("Read geojson successfully");
-    layersTreeWidget->insertNewItem(newFeatureLayer);
     searchWidget->updateCompleterList();
-
-    // 发送数据给GPU并绘图
-    openGLWidget->sendDataToGPU(newFeatureLayer);
+    openGLWidget->update();
 }
 
 // menu: file->open->Shapefile
 void ICGis::onOpenGeoShapefile() {
-    QString filepath = QFileDialog::getOpenFileName(
-        this, tr("Open File"), ".", tr("shapefile(*.shp)"), nullptr,
+    QStringList files = QFileDialog::getOpenFileNames(
+        this, tr("Open File"), "", tr("shapefile(*.shp)"), nullptr,
         QFileDialog::DontUseNativeDialog);
 
-    if (filepath.isEmpty())
+    if (files.isEmpty())
         return;
 
-    GeoFeatureLayer *newFeatureLayer = FileReader::readShapefile(filepath, map);
-    if (!newFeatureLayer) {
-        QMessageBox::critical(this, tr("Error"),
-                              tr("Read and parse shapefile error"));
-        LError("Read and parse shapefile error");
-        return;
+    for (auto iter = files.begin(); iter != files.end(); ++iter) {
+        GeoFeatureLayer *newFeatureLayer = FileReader::readShapefile(*iter, map);
+        if (!newFeatureLayer) {
+            QString errmsg = "Read and parse shapefile failed: " + *iter;
+            QMessageBox::critical(this, "Error", errmsg, QMessageBox::Ok);
+            LError(errmsg.toStdString());
+            continue;
+        }
+        layersTreeWidget->onAddNewLayer(newFeatureLayer);
+        openGLWidget->onSendFeatureLayerToGPU(newFeatureLayer, false);    // not update immediately
     }
 
-    LInfo("Read and parse shapefile successfully");
-    layersTreeWidget->insertNewItem(newFeatureLayer);
     searchWidget->updateCompleterList();
-
-    // 发送数据给GPU并绘图
-    openGLWidget->sendDataToGPU(newFeatureLayer);
+    openGLWidget->update();
 }
 
 // file->open->Tiff
 void ICGis::onOpenTiff() {
-    QString filepath = QFileDialog::getOpenFileName(
-        this, tr("Open File"), ".", tr("TIFF(*.tif)"), nullptr,
+    QStringList files = QFileDialog::getOpenFileNames(
+        this, tr("Open File"), "", tr("TIFF(*.tif)"), nullptr,
         QFileDialog::DontUseNativeDialog);
 
-    if (filepath.isEmpty())
+    if (files.isEmpty())
         return;
 
-    GeoRasterLayer *newRasterLayer = FileReader::readTiff(filepath, map);
-    if (!newRasterLayer) {
-        QMessageBox::critical(this, tr("Error"),
-                              tr("Read and parse shapefile error"));
-        LError("Read and parse shapefile error");
-        return;
+    for (auto iter = files.begin(); iter != files.end(); ++iter) {
+        GeoRasterLayer *newRasterLayer = FileReader::readTiff(*iter, map);
+        if (!newRasterLayer) {
+            QString errmsg = "Read and parse TIFF image failed: " + *iter;
+            QMessageBox::critical(this, "Error", errmsg, QMessageBox::Ok);
+            LError(errmsg.toStdString());
+            return;
+        }
+        layersTreeWidget->onAddNewLayer(newRasterLayer);
+        openGLWidget->onSendRasterLayerToGPU(newRasterLayer, false); // not update immediately
     }
 
-    LInfo("Read and parse shapefile successfully");
-    layersTreeWidget->insertNewItem(newRasterLayer);
     searchWidget->updateCompleterList();
-
-    // 发送数据给GPU并绘图
-    openGLWidget->sendDataToGPU(newRasterLayer);
+    openGLWidget->update();
 }
 
 // file->connect->Postgresql
@@ -294,14 +317,9 @@ void ICGis::onConnectPostgresql() {
     postgresqlTableSelectDialog->setFixedSize(500, 300);
     postgresqlTableSelectDialog->setModal(true);
     postgresqlTableSelectDialog->map = this->map;
-    postgresqlTableSelectDialog->setOpenglWidget(openGLWidget);
-    postgresqlTableSelectDialog->setLayersTreeWidget(layersTreeWidget);
 
-    // 两个子窗口的通信
-    // 连接数据库 和 读取数据库
     connect(postgresqlConnectDialog, &PostgresqlConnect::btnConnectClicked,
-            postgresqlTableSelectDialog,
-            &PostgresqlTableSelect::onConnectPostgresql);
+            postgresqlTableSelectDialog, &PostgresqlTableSelect::onConnectPostgresql);
 
     postgresqlConnectDialog->show();
 }
@@ -313,14 +331,23 @@ void ICGis::onShowLogDialog() {
     viewLogDialog->show();
 }
 
-/*************************************************************/
-/*                                                           */
-/*                          Events                           */
-/*                                                           */
-/*************************************************************/
-void ICGis::contextMenuEvent(QContextMenuEvent *event) {}
+void ICGis::onAbout() {
+    AboutDialog* aboutDialog = new AboutDialog(this);
+    aboutDialog->setModal(true);
+    aboutDialog->show();
+}
 
-void ICGis::mouseMoveEvent(QMouseEvent* event)
-{
-    qDebug() << "move " << count++;
+void ICGis::closeEvent(QCloseEvent *event) {
+    int button = QMessageBox::question(this, "Prompt", "Save the project?",
+                                       QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
+    if (button == QMessageBox::Cancel) {
+        event->ignore();
+        return;
+    }
+    else if (button == QMessageBox::Yes) {
+
+    }
+    else {
+        QMainWindow::closeEvent(event);
+    }
 }

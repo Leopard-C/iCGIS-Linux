@@ -5,7 +5,10 @@
 ** C++ Header Files
 *************************/
 
+#include <algorithm>
+#include <deque>
 #include <map>
+#include <set>
 #include <vector>
 
 
@@ -47,7 +50,9 @@
 #include <QModelIndex>
 #include <QMouseEvent>
 #include <QObject>
-//#include <QOpenGLWidget>
+// must be included befor QOpenGLWidget
+#include "opengl/glcall.h"
+#include <QOpenGLWidget>
 #include <QPainter>
 #include <QPalette>
 #include <QPixmap>

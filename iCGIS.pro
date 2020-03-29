@@ -20,17 +20,28 @@ INCLUDEPATH += \
     include \
     src
 
-LIBS += -L$$PWD/lib -ljsoncpp -lspdlog -lgdal -lGLEW
+# lib
+unix {
+    DEPENDPATH += $$PWD/lib/unix
+    LIBS += -L$$PWD/lib -ljsoncpp -lspdlog -lgdal -lGLEW
+    LIBS += -ldl -lexpat
+}
 
-LIBS += -ldl -lexpat
+win32 {
+    DEPENDPATH += $$PWD/lib/win32
+    LIBS += -L$$PWD/lib/win32 -lglew32s -lglfw3 -lopengl32 -lgdal_i -lspdlog
+    CONFIG+=debug_and_release
+    CONFIG(debug, debug|release){
+        LIBS += -ljsoncppd
+    } else {
+        LIBS += -ljsoncpp
+    }
+}
 
-INCLUDEPATH += $$PWD/lib
-DEPENDPATH += $$PWD/lib
 
 # Precompiled headers
 CONFIG += precompile_header
 PRECOMPILED_HEADER = src/stable.h
-
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/build
@@ -92,13 +103,17 @@ DISTFILES += \
     res/shaders/texture_vert.glsl
 
 SOURCES += \
+    src/dialog/aboutdialog.cpp \
     src/dialog/globalsearchresult.cpp \
     src/dialog/headerviewwithcheckbox.cpp \
     src/dialog/layerattributetabledialog.cpp \
     src/dialog/layerstyledialog.cpp \
+    src/dialog/newmapdialog.cpp \
     src/dialog/postgresqlconnect.cpp \
     src/dialog/postgresqltableselect.cpp \
     src/dialog/viewlog.cpp \
+    src/dialog/whatisthisdialog.cpp \
+    src/geo/geometry/geogeometry.cpp \
     src/geo/geometry/geogeometrycollection.cpp \
     src/geo/geometry/geolinearring.cpp \
     src/geo/geometry/geolinestring.cpp \
@@ -109,6 +124,7 @@ SOURCES += \
     src/geo/geometry/geopolygon.cpp \
     src/geo/index/grid.cpp \
     src/geo/index/gridindex.cpp \
+    src/geo/index/spatialindex.cpp \
     src/geo/map/geofeature.cpp \
     src/geo/map/geofeaturelayer.cpp \
     src/geo/map/geofeaturelayerproperty.cpp \
@@ -118,6 +134,7 @@ SOURCES += \
     src/geo/raster/georasterband.cpp \
     src/geo/raster/georasterdata.cpp \
     src/geo/raster/geotiff.cpp \
+    src/geo/tool/geotool.cpp \
     src/geo/tool/kernel_density.cpp \
     src/geo/utility/filereader.cpp \
     src/geo/utility/geo_convert.cpp \
@@ -129,15 +146,19 @@ SOURCES += \
     src/main.cpp \
     src/opengl/glcall.cpp \
     src/opengl/indexbuffer.cpp \
-    src/opengl/layermanager/openglfeaturelayerdescriptor.cpp \
-    src/opengl/layermanager/opengllayermanager.cpp \
+    src/opengl/openglfeaturedescriptor.cpp \
+    src/opengl/openglrasterdescriptor.cpp \
     src/opengl/renderer.cpp \
     src/opengl/shader.cpp \
     src/opengl/texture.cpp \
     src/opengl/vertexarray.cpp \
     src/opengl/vertexbuffer.cpp \
     src/opengl/vertexbufferlayout.cpp \
-    src/utility.cpp \
+    src/operation/operation.cpp \
+    src/operation/operationlist.cpp \
+    src/util/appevent.cpp \
+    src/util/env.cpp \
+    src/util/utility.cpp \
     src/widget/colorblockwidget.cpp \
     src/widget/globalsearchwidget.cpp \
     src/widget/layerstreewidget.cpp \
@@ -145,6 +166,7 @@ SOURCES += \
     src/widget/openglwidget.cpp \
     src/widget/searchcompleter.cpp \
     src/widget/statusbar.cpp \
+    src/widget/toolbar.cpp \
     src/widget/toolboxtreewidget.cpp
 
 HEADERS += \
@@ -684,13 +706,16 @@ HEADERS += \
     include/spdlog/spdlog.h \
     include/spdlog/tweakme.h \
     include/spdlog/version.h \
+    src/dialog/aboutdialog.h \
     src/dialog/globalsearchresult.h \
     src/dialog/headerviewwithcheckbox.h \
     src/dialog/layerattributetabledialog.h \
     src/dialog/layerstyledialog.h \
+    src/dialog/newmapdialog.h \
     src/dialog/postgresqlconnect.h \
     src/dialog/postgresqltableselect.h \
     src/dialog/viewlog.h \
+    src/dialog/whatisthisdialog.h \
     src/geo/geo_base.hpp \
     src/geo/geometry/geogeometry.h \
     src/geo/index/grid.h \
@@ -715,27 +740,29 @@ HEADERS += \
     src/geo/utility/geojson.h \
     src/geo/utility/sld.h \
     src/icgis.h \
-    src/logger.h \
-    src/memoryleakdetect.h \
     src/opengl/glcall.h \
     src/opengl/indexbuffer.h \
-    src/opengl/layermanager/openglfeaturedescriptor.h \
-    src/opengl/layermanager/opengllayerdescriptor.h \
-    src/opengl/layermanager/opengllayermanager.h \
-    src/opengl/layermanager/openglrasterdescriptor.h \
+    src/opengl/openglfeaturedescriptor.h \
+    src/opengl/openglrasterdescriptor.h \
     src/opengl/renderer.h \
     src/opengl/shader.h \
     src/opengl/texture.h \
     src/opengl/vertexarray.h \
     src/opengl/vertexbuffer.h \
     src/opengl/vertexbufferlayout.h \
-    src/utility.h \
+    src/operation/operation.h \
+    src/operation/operationlist.h \
+    src/util/appevent.h \
+    src/util/utility.h \
+    src/util/env.h \
+    src/util/logger.h \
+    src/util/memoryleakdetect.h \
     src/widget/colorblockwidget.h \
-    src/widget/comboboxproxystyle.h \
     src/widget/globalsearchwidget.h \
     src/widget/layerstreewidget.h \
     src/widget/layerstreewidgetitem.h \
     src/widget/openglwidget.h \
     src/widget/searchcompleter.h \
     src/widget/statusbar.h \
+    src/widget/toolbar.h \
     src/widget/toolboxtreewidget.h

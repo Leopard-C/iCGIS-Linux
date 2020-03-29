@@ -1,39 +1,40 @@
 /*******************************************************
 ** class name: GisDev
 **
-** description: 主窗口
+** description: Main Window
 **
-** last change: 2020-01-04
+** last change: 2020-03-28
 *******************************************************/
 
 #pragma once
 
 #include <QAction>
+#include <QMainWindow>
 #include <QMenu>
 #include <QMenuBar>
 #include <QToolBar>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
-#include <QtWidgets/QMainWindow>
 
 #include <map>
 
 #include "dialog/postgresqlconnect.h"
 #include "dialog/postgresqltableselect.h"
 #include "dialog/viewlog.h"
-#include "geo/map/geomap.h"
 #include "widget/globalsearchwidget.h"
 #include "widget/layerstreewidget.h"
 #include "widget/openglwidget.h"
 #include "widget/statusbar.h"
+#include "widget/toolbar.h"
 #include "widget/toolboxtreewidget.h"
+#include "geo/map/geomap.h"
+
 
 class ICGis : public QMainWindow {
     Q_OBJECT
-
 public:
-    ICGis(QWidget* parent = Q_NULLPTR);
-    ~ICGis();
+    ICGis(QWidget* parent = nullptr);
+    ~ICGis() override;
 
 public:
     /* Initialize */
@@ -47,19 +48,21 @@ public:
     void test_geo_math();
 
 public slots:
-    void onUpdateOpenGLWidget();
+    void onNewMap();
     void onOpenGeoJsonUsingGDAL();
     void onOpenGeoJsonMine();
     void onOpenGeoShapefile();
     void onOpenTiff();
     void onConnectPostgresql();
-    void onShowLogDialog();  // 显示日志窗口
+    void onShowLogDialog();
+    void onAbout();
 
 protected:
-    void contextMenuEvent(QContextMenuEvent* event) override;
-    void mouseMoveEvent(QMouseEvent* event) override;
+    virtual void closeEvent(QCloseEvent*) override;
 
 private:
+    GeoMap*& map;
+
     /* Dialog */
     PostgresqlConnect* postgresqlConnectDialog;
     PostgresqlTableSelect* postgresqlTableSelectDialog;
@@ -69,17 +72,21 @@ private:
     LayersTreeWidget* layersTreeWidget;
     ToolBoxTreeWidget* toolboxTreeWidget;
     OpenGLWidget* openGLWidget;
-    GlobalSearchWidget* searchWidget;  // 搜索框
+    GlobalSearchWidget* searchWidget;
+
+    /* Tool bar */
+    ToolBar* toolbar;
 
     /* Status bar */
     StatusBar* statusbar;
 
     /* MenuBar */
-    QMenu* fileMenu;      // 一级
-    QMenu* openFileMenu;  // 二级
-    QMenu* newFileMenu;   // 二级
-    QMenu* connectMenu;   // 二级
-    QMenu* windowMenu;    // 一级
+    QMenu* fileMenu;      // File
+    QMenu* newFileMenu;   //  File -> New
+    QMenu* openFileMenu;  //  File -> Open
+    QMenu* connectMenu;   //  File -> Connect
+    QMenu* windowMenu;    // Window
+    QMenu* aboutMenu;     // About
 
     /* Right clicked menu */
     QMenu* popMenu;
@@ -93,7 +100,5 @@ private:
     QAction* newMapAction;
     QAction* newLayerAction;
     QAction* showLogDialog;
-
-private:
-    GeoMap* map;
+    QAction* aboutAction;
 };

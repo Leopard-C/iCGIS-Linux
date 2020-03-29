@@ -8,8 +8,8 @@ uniform mat4 u_MVP;
 
 void main()
 {
-	gl_Position = u_MVP * vec4(aPosition, 0.0, 1.0);
-	//texCoord = (u_MVP * vec4(aTexCoord, 0.0, 1.0)).xy;
-	texCoord = aTexCoord;
+    gl_Position = u_MVP * vec4(aPosition, 0.0, 1.0);
+    //texCoord = (u_MVP * vec4(aTexCoord, 0.0, 1.0)).xy;
+    texCoord = aTexCoord;
 }
 
