@@ -1,10 +1,14 @@
-## A simple gis program running on linux.
+## A simple gis program built in Qt-Creator.
 
-功能特性参考：Windows Version: [iCGIS](https://github.com/Leopard-C/iCGIS)
+Linux and windows are both supported!
 
+README: [Leopard-C/iCGIS](https://github.com/Leopard-C/iCGIS)
 
+[Prompt]
 
-【Prompt】
+`lib/unix/libgdal.a` is too lagre to upload to GitHub directly.
 
-静态库文件`lib/libgdal.a`太大，280+M，无法直接上传。已经压缩为`.7z`格式上传。
+It is compressed to `lib/unix/libs&dlls/libs.7z`
+
+And some dll files needed are compressed to `lib/${OS}/libs&dlls/dlls.7z`
 
